@@ -1,0 +1,54 @@
+[
+    {
+        "room_id": "BOYS RESTROOM",
+        "building_id": 14,
+        "floor_level": 7,
+        "room_type": "Facility",
+        "branch": "General",
+        "class_in_charge": null,
+        "coordinate_x": 13.0398,
+        "coordinate_y": 80.0458,
+        "floor_plan_image": "c_block_map.png",
+        "footprint_coordinates": "[\n        [80.045766, 13.039808],\n        [80.045804, 13.039795],\n        [80.045787, 13.039756],\n         [80.045746, 13.039770]\n      ],",
+        "z_coordinate": 3.5
+    },
+    {
+        "room_id": "C7-03",
+        "building_id": 14,
+        "floor_level": 7,
+        "room_type": "Classroom",
+        "branch": "General",
+        "class_in_charge": null,
+        "coordinate_x": 13.0396,
+        "coordinate_y": 80.0457,
+        "floor_plan_image": "c_block_map.png",
+        "footprint_coordinates": "[80.045695, 13.039615],\n      [80.045774, 13.039590],\n      [80.045751, 13.039533],\n      [80.045666, 13.039558]",
+        "z_coordinate": 3.5
+    },
+    {
+        "room_id": "C7-04",
+        "building_id": 14,
+        "floor_level": 7,
+        "room_type": "Classroom",
+        "branch": "General",
+        "class_in_charge": null,
+        "coordinate_x": 13.0396,
+        "coordinate_y": 80.0458,
+        "floor_plan_image": "c_block_map.png",
+        "footprint_coordinates": "[80.045728, 13.039679],\n      [80.045800, 13.039656],\n      [80.045777, 13.039599],\n      [80.045699, 13.039623]",
+        "z_coordinate": 3.5
+    },
+    {
+        "room_id": "C7-05",
+        "building_id": 14,
+        "floor_level": 7,
+        "room_type": "Classroom",
+        "branch": "General",
+        "class_in_charge": null,
+        "coordinate_x": 13.0397,
+        "coordinate_y": 80.0458,
+        "floor_plan_image": "c_block_map.png",
+        "footprint_coordinates": "[80.045759, 13.039744],\n        [80.045824, 13.039722],\n        [80.045802, 13.039665],\n        [80.045731, 13.039687]",
+        "z_coordinate": 3.5
+    }
+]

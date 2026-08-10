@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Way Point RIT | Smart Campus</title>
+    <link rel="icon" type="image/png" href="logo.png?v=5">
+    <link rel="icon" type="image/png" sizes="192x192" href="logo.png?v=5">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo.png?v=5">
+    <link rel="apple-touch-icon" href="logo.png?v=5">
+    <link rel="apple-touch-icon" sizes="192x192" href="logo.png?v=5">
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark-theme">
+
+    <!-- Global Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <div class="spinner"></div>
+            <h2>Waypoint RIT</h2>
+            <p>Initializing Campus Data...</p>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="floating-search-box" id="main-search-box">
+        <i class="fa-solid fa-bars menu-icon"></i>
+        <input type="text" id="search-bar" placeholder="Search for rooms, staff, or places...">
+        <div class="search-actions">
+            <button class="icon-btn" title="Scan Room" id="scan-btn"><i class="fa-solid fa-qrcode"></i></button>
+            <button class="icon-btn" title="Filter"><i class="fa-solid fa-sliders"></i></button>
+            <button class="icon-btn action-blue" title="Directions"><i
+                    class="fa-solid fa-diamond-turn-right"></i></button>
+        </div>
+    </div>
+
+    <!-- Routing Panel -->
+    <div id="routing-panel" class="routing-panel glass-panel" style="display: none;">
+        <div class="routing-inputs">
+            <div class="routing-icons">
+                <i class="fa-regular fa-circle-dot from-icon"></i>
+                <div class="route-line"></div>
+                <i class="fa-solid fa-location-dot to-icon"></i>
+            </div>
+            <div class="routing-fields">
+                <input type="text" id="route-from" placeholder="From (e.g. My Location)" value="My Location">
+                <div class="routing-divider"></div>
+                <input type="text" id="route-to" placeholder="To (e.g. Room 101)">
+            </div>
+            <button class="icon-btn swap-btn" id="swap-route-btn" title="Swap"><i class="fa-solid fa-arrow-right-arrow-left fa-rotate-90"></i></button>
+        </div>
+        <div class="routing-actions">
+            <button class="nav-btn primary-btn" id="start-nav-btn"><i class="fa-solid fa-location-arrow"></i> Start</button>
+            <button class="icon-btn close-route-btn" id="close-route-btn" title="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
+    <!-- Navigation Confirmation Dialog -->
+    <div id="nav-confirm-dialog" class="nav-confirm-dialog glass-panel" style="display: none;">
+        <p class="confirm-text">Navigate to <span id="confirm-target-name">Room</span>?</p>
+        <div class="confirm-buttons">
+            <button class="confirm-btn yes-btn" id="confirm-yes-btn">Yes</button>
+            <button class="confirm-btn no-btn" id="confirm-no-btn">No</button>
+        </div>
+    </div>
+
+    <div id="map-container"></div>
+
+    <div id="building-info-panel" class="info-panel glass-panel">
+        <div class="panel-header">
+            <h2 id="info-title">Building Name</h2>
+            <p id="info-desc">Campus Facility</p>
+        </div>
+        <div class="info-stats">
+            <div class="stat"><i class="fa-solid fa-layer-group"></i> <span><span id="info-floors">0</span> Floors</span></div>
+            <div class="stat"><i class="fa-solid fa-door-open"></i> <span>Indoor Navigation</span></div>
+        </div>
+        <button id="panel-dismiss-btn" class="panel-dismiss-btn" onclick="if(window.deselectBuilding) window.deselectBuilding();" style="margin-top: 14px; width: 100%; background: #ef4444; color: white; border: none; padding: 8px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s;">
+            <i class="fa-solid fa-xmark"></i> Dismiss
+        </button>
+    </div>
+
+    <!-- Live Announcements Panel -->
+    <div id="announcement-panel" class="announcement-panel glass-panel">
+        <div class="announcement-header">
+            <span><i class="fa-solid fa-bullhorn"></i> Live Updates</span>
+        </div>
+        <div class="announcement-content" id="announcement-list">
+            <!-- Dynamic updates will go here -->
+            <div style="padding: 10px; font-size: 0.8rem; color: #94a3b8; text-align: center;">Loading...</div>
+        </div>
+    </div>
+
+    <div class="floating-right-controls">
+        <div id="floor-widget-container" class="floor-widget" style="display: none;">
+            <div class="floor-header">Floor</div>
+            <div id="floor-btn-group" class="floor-btn-group"></div>
+        </div>
+
+        <div class="map-tools">
+            <button id="compass-btn" class="tool-btn" title="Reset North"><i class="fa-regular fa-compass"></i></button>
+            <button id="toggle-3d-btn" class="tool-btn" title="Toggle 3D/2D">3D</button>
+            <button id="recenter-btn" class="tool-btn" title="My Location"><i
+                    class="fa-solid fa-location-crosshairs"></i></button>
+        </div>
+    </div>
+
+    <button id="exit-building-btn" class="floating-exit-btn" style="display: none;">
+        <i class="fa-solid fa-xmark"></i> Dismiss
+    </button>
+    <button id="slide-info-btn" class="floating-slide-btn" style="display: none;">
+        <i class="fa-solid fa-chevron-left"></i> Hide Info
+    </button>
+
+    <!-- QR Scanner Modal -->
+    <div id="qr-scanner-modal" class="scanner-modal" style="display: none;">
+        <div class="scanner-container">
+            <div class="scanner-header">
+                <h3>Scan Room QR</h3>
+                <button id="close-scanner-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="scanner-video-wrapper">
+                <video id="qr-video" autoplay playsinline></video>
+                <div class="scanner-overlay">
+                    <div class="scanner-target"></div>
+                    <div class="scanner-laser"></div>
+                </div>
+            </div>
+            <canvas id="qr-canvas" style="display: none;"></canvas>
+            <div id="scanner-status">Requesting camera...</div>
+        </div>
+    </div>
+
+    <!-- Side Menu Overlay -->
+    <div id="menu-overlay" class="menu-overlay"></div>
+
+    <!-- Side Menu -->
+    <div id="side-menu" class="side-menu">
+        <div class="menu-header">
+            <h2>Waypoint RIT</h2>
+            <button id="close-menu-btn" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="menu-content">
+            <div class="menu-item" id="menu-blocks">
+                <div class="menu-item-header">
+                    <span><i class="fa-solid fa-building"></i> Blocks (Buildings)</span>
+                    <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="menu-sub-list" id="blocks-list">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+
+            <div class="menu-item" id="menu-rooms">
+                <div class="menu-item-header">
+                    <span><i class="fa-solid fa-door-open"></i> Rooms</span>
+                    <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                </div>
+                <div class="menu-sub-list" id="rooms-list">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+
+            <div class="menu-item no-child" id="menu-staffs">
+                <div class="menu-item-header">
+                    <span><i class="fa-solid fa-user-tie"></i> Staffs</span>
+                    <span class="coming-soon-badge">Soon</span>
+                </div>
+            </div>
+
+            <div class="menu-item no-child" id="menu-events">
+                <div class="menu-item-header">
+                    <span><i class="fa-solid fa-calendar-check"></i> Events</span>
+                    <span class="coming-soon-badge">Soon</span>
+                </div>
+            </div>
+
+            <div class="menu-item no-child" id="menu-contact">
+                <div class="menu-item-header">
+                    <span><i class="fa-solid fa-address-book"></i> Contact</span>
+                </div>
+            </div>
+
+            <div class="menu-item no-child" id="menu-wall-toggle">
+                <div class="menu-item-header" style="cursor: default;">
+                    <span><i class="fa-solid fa-border-all"></i> Campus Boundary</span>
+                    <label class="switch">
+                        <input type="checkbox" id="wall-toggle-switch">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="menu-item no-child" id="menu-mode-toggle">
+                <div class="menu-item-header" style="cursor: default;">
+                    <span><i class="fa-solid fa-moon"></i> Dark Mode</span>
+                    <label class="switch">
+                        <input type="checkbox" id="dark-mode-switch" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="campus_map.js"></script>
+</body>
+
+</html>

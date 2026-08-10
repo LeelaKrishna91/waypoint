@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- PWA / iOS Kiosk mode support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Waypoint RIT Admin">
+    <title>RIT Admin | CMS Dashboard</title>
+    <link rel="icon" type="image/png" href="logo_admin.png?v=5">
+    <link rel="icon" type="image/png" sizes="192x192" href="logo_admin.png?v=5">
+    <link rel="icon" type="image/png" sizes="512x512" href="logo_admin.png?v=5">
+    <link rel="apple-touch-icon" href="logo_admin.png?v=5">
+    <link rel="apple-touch-icon" sizes="192x192" href="logo_admin.png?v=5">
+    <link rel="manifest" href="manifest_admin.json">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css" type="text/css">
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link rel="stylesheet" href="admin.css?v=2">
+</head>
+<body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>RIT CMS Dashboard</h2>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" placeholder="admin">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="rit123">
+            </div>
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="attemptLogin()">
+                <i class="fa-solid fa-right-to-bracket"></i> Log In
+            </button>
+            <p id="login-error" style="color: #e74c3c; text-align: center; margin-top: 15px; display: none; font-size: 0.9rem; font-weight: 600;">
+                <i class="fa-solid fa-triangle-exclamation"></i> Invalid credentials
+            </p>
+        </div>
+    </div>
+    
+    <div class="sidebar">
+        <h2><i class="fa-solid fa-route" style="color: var(--color-mint);"></i> Waypoint RIT</h2>
+        <button class="nav-btn active" onclick="switchTab('messages')">
+            <i class="fa-solid fa-bullhorn"></i> Live Messages
+        </button>
+        <button class="nav-btn" onclick="switchTab('buildings')">
+            <i class="fa-solid fa-building"></i> Buildings & POIs
+        </button>
+        <button class="nav-btn" onclick="switchTab('rooms')">
+            <i class="fa-solid fa-door-open"></i> Rooms & Hallways
+        </button>
+        <div style="flex: 1;"></div>
+        <button class="nav-btn" style="color: #e74c3c;" onclick="location.reload()">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </button>
+    </div>
+
+    <div class="main-content">
+        <div id="messages" class="panel active">
+            <h3>Add New Notification</h3>
+            <div class="form-group">
+                <label>Message Content</label>
+                <input type="text" id="msg-text" placeholder="e.g., Canteen closed today due to repairs">
+            </div>
+            <div class="form-group">
+                <label>Type</label>
+                <select id="msg-type">
+                    <option value="info">Info (Blue)</option>
+                    <option value="warning">Warning (Yellow)</option>
+                    <option value="closed">Closed (Red)</option>
+                </select>
+            </div>
+            <button class="btn-primary" onclick="pushMessage()">
+                <i class="fa-solid fa-paper-plane"></i> Post Message
+            </button>
+            
+            <h3 style="margin-top: 50px;">Active Messages</h3>
+            <ul class="msg-list" id="active-messages-list"></ul>
+        </div>
+
+        <div id="buildings" class="panel">
+            <h3>Save 3D Building</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Building Name</label>
+                    <input type="text" id="b-name" placeholder="e.g., Block C">
+                </div>
+                <div class="form-group">
+                    <label>Floors</label>
+                    <input type="number" id="b-floors" value="1" min="1">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Map Symbol (Font Awesome Class)</label>
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
+                        <span id="b-icon-preview" style="display: flex; align-items: center; justify-content: center; width: 46px; height: 46px; background: transparent; border: 1px solid rgba(11, 37, 69, 0.1); border-radius: 50%; font-size: 1.25rem; color: var(--color-navy); flex-shrink: 0; box-shadow: var(--shadow-soft); transition: var(--transition-smooth);">
+                            <i class="fa-solid fa-building"></i>
+                        </span>
+                        <input type="text" id="b-icon" value="fa-building" placeholder="e.g., fa-building" oninput="updateIconPreview()">
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="preset-icon-btn active" data-icon="fa-building" onclick="setPresetIcon('fa-building')"><i class="fa-solid fa-building"></i> Building</button>
+                        <button type="button" class="preset-icon-btn" data-icon="fa-graduation-cap" onclick="setPresetIcon('fa-graduation-cap')"><i class="fa-solid fa-graduation-cap"></i> Academic</button>
+                        <button type="button" class="preset-icon-btn" data-icon="fa-desktop" onclick="setPresetIcon('fa-desktop')"><i class="fa-solid fa-desktop"></i> Lab</button>
+                        <button type="button" class="preset-icon-btn" data-icon="fa-utensils" onclick="setPresetIcon('fa-utensils')"><i class="fa-solid fa-utensils"></i> Canteen</button>
+                        <button type="button" class="preset-icon-btn" data-icon="fa-money-bill-wave" onclick="setPresetIcon('fa-money-bill-wave')"><i class="fa-solid fa-money-bill-wave"></i> ATM</button>
+                        <button type="button" class="preset-icon-btn" data-icon="fa-coffee" onclick="setPresetIcon('fa-coffee')"><i class="fa-solid fa-coffee"></i> Cafe</button>
+                        <button type="button" class="preset-icon-btn" data-icon="fa-square-parking" onclick="setPresetIcon('fa-square-parking')"><i class="fa-solid fa-square-parking"></i> Parking</button>
+                        <button type="button" class="preset-icon-btn" data-icon="fa-restroom" onclick="setPresetIcon('fa-restroom')"><i class="fa-solid fa-restroom"></i> Restroom</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Shell Color (Hex)</label>
+                    <input type="text" id="b-color" value="#f8f9fa" placeholder="#f8f9fa" oninput="updateIconPreview()">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Center Latitude (X)</label>
+                    <input type="number" step="any" id="b-lat" placeholder="13.03...">
+                </div>
+                <div class="form-group">
+                    <label>Center Longitude (Y)</label>
+                    <input type="number" step="any" id="b-lng" placeholder="80.04...">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>3D Footprint Coordinates (GeoJSON Array)</label>
+                <textarea id="b-footprint" placeholder="[[[80.04..., 13.03...], ...]]]"></textarea>
+                <button type="button" class="draw-btn" onclick="openDrawMap('b-footprint')">
+                    <i class="fa-solid fa-draw-polygon"></i> Draw Shape on Map
+                </button>
+            </div>
+
+            <div style="display: flex; gap: 10px; align-items: center;" id="building-actions-container">
+                <button class="btn-primary" onclick="addBuilding()" id="b-save-btn">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Building
+                </button>
+            </div>
+            
+            <h3 style="margin-top: 50px;">Active Buildings</h3>
+            <ul class="msg-list" id="building-list"></ul>
+        </div>
+
+        <div id="rooms" class="panel">
+            <h3>Save Indoor Room / Hallway</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Room ID</label>
+                    <input type="text" id="r-id" placeholder="e.g., C-Hallway-102">
+                </div>
+                <div class="form-group">
+                    <label>Building</label>
+                    <select id="r-building"></select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Floor Level (0 = Ground)</label>
+                    <input type="number" id="r-floor" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="r-type">
+                        <option>Classroom</option>
+                        <option>Corridor</option>
+                        <option>Facility</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Room Color (Hex)</label>
+                    <input type="text" id="r-color" placeholder="e.g. #f97316 (blank for default)">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Center Latitude (X)</label>
+                    <input type="number" step="any" id="r-lat" placeholder="13.03...">
+                </div>
+                <div class="form-group">
+                    <label>Center Longitude (Y)</label>
+                    <input type="number" step="any" id="r-lng" placeholder="80.04...">
+                </div>
+                <div class="form-group">
+                    <label>Height (Z-Coord)</label>
+                    <input type="number" step="any" id="r-zcoord" value="3.5" placeholder="3.5">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>3D Footprint Coordinates (GeoJSON Array)</label>
+                <textarea id="r-footprint" placeholder="[[[80.04..., 13.03...], ...]]]"></textarea>
+                <button type="button" class="draw-btn" onclick="openDrawMap('r-footprint')">
+                    <i class="fa-solid fa-draw-polygon"></i> Draw Shape on Map
+                </button>
+            </div>
+
+            <!-- QR Code Generator UI -->
+            <div class="form-group" style="margin-top: 25px; background: rgba(11, 37, 69, 0.02); padding: 20px; border-radius: var(--radius-large); border: 1px solid var(--color-border); display: flex; align-items: center; gap: 24px;">
+                <div id="room-qr-display" style="width: 130px; height: 130px; background: white; border: 1px solid var(--color-border); display: flex; justify-content: center; align-items: center; border-radius: 10px; overflow: hidden; flex-shrink: 0; padding: 5px;">
+                    <span style="font-size: 0.75rem; color: #64748b; text-align: center; font-weight: 500;">Enter Room ID<br>to generate QR</span>
+                </div>
+                <div>
+                    <h4 style="margin-bottom: 8px; color: var(--color-navy); font-family: var(--font-heading); font-size: 1.1rem;">
+                        <i class="fa-solid fa-qrcode" style="color: var(--color-mint);"></i> Room Door QR Code
+                    </h4>
+                    <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 15px; line-height: 1.4;">
+                        Admins can download the door QR code to print physical posters. Students scan the code to start navigating instantly.
+                    </p>
+                    <button type="button" class="btn-primary" style="background: var(--color-mint); margin: 0; font-size: 0.85rem; padding: 10px 18px; box-shadow: 0 4px 12px var(--color-mint-glow);" onclick="downloadQRCode()">
+                        <i class="fa-solid fa-download"></i> Download QR Image
+                    </button>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; align-items: center; margin-top: 20px;" id="room-actions-container">
+                <button class="btn-primary" onclick="addRoom()" id="r-save-btn">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Room
+                </button>
+            </div>
+            
+            <h3 style="margin-top: 50px;">Active Rooms</h3>
+            <ul class="msg-list" id="room-list"></ul>
+        </div>
+    </div>
+
+    <!-- Mapbox Draw Integrated Modal -->
+    <div id="map-modal" class="map-modal">
+        <div style="background: white; border-radius: var(--radius-large); width: 100%; max-width: 1200px; overflow: hidden; box-shadow: var(--shadow-deep); display: flex; flex-direction: column;">
+            <div class="map-modal-header">
+                <h3><i class="fa-solid fa-map-location-dot" style="color: var(--color-mint);"></i> RIT Campus Layout Studio</h3>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <input type="file" id="bp-upload" accept="image/*" style="display:none;" onchange="handleBlueprintUpload(event)">
+                    <button class="btn-primary" style="background: rgba(255, 255, 255, 0.15); border: 1px solid var(--color-border); box-shadow: none; margin: 0;" onclick="document.getElementById('bp-upload').click()">
+                        <i class="fa-solid fa-image"></i> Load Blueprint
+                    </button>
+                    <button class="btn-primary" style="background: var(--color-mint); margin:0;" onclick="saveDrawMap()">
+                        <i class="fa-solid fa-circle-check"></i> Save Shape
+                    </button>
+                    <button class="btn-danger" style="margin:0;" onclick="closeDrawMap()">
+                        <i class="fa-solid fa-xmark"></i> Cancel
+                    </button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div id="draw-map"></div>
+                <div id="blueprint-panel" class="blueprint-panel">
+                    <h4 style="margin-bottom:15px; font-size:0.95rem; color:var(--color-navy); font-family: var(--font-heading);"><i class="fa-solid fa-sliders" style="color: var(--color-mint);"></i> Alignment Options</h4>
+                    <div class="bp-control">
+                        <label>Opacity</label>
+                        <input type="range" id="bp-opacity" min="0" max="1" step="0.05" value="0.7" oninput="recalculateBlueprint()">
+                    </div>
+                    <div class="bp-control">
+                        <label>Scale</label>
+                        <input type="range" id="bp-scale" min="0.0001" max="0.0080" step="0.0001" value="0.0010" oninput="recalculateBlueprint()">
+                    </div>
+                    <div class="bp-control">
+                        <label>Rotation (deg)</label>
+                        <input type="range" id="bp-rotation" min="-180" max="180" step="1" value="0" oninput="recalculateBlueprint()">
+                    </div>
+                    <div class="bp-control">
+                        <label>Offset Y (Lat)</label>
+                        <input type="range" id="bp-lat" min="-0.005" max="0.005" step="0.00001" value="0" oninput="recalculateBlueprint()">
+                    </div>
+                    <div class="bp-control">
+                        <label>Offset X (Lng)</label>
+                        <input type="range" id="bp-lng" min="-0.005" max="0.005" step="0.00001" value="0" oninput="recalculateBlueprint()">
+                    </div>
+                    <button class="btn-danger" style="width:100%; margin-top:8px;" onclick="removeBlueprint()">
+                        <i class="fa-solid fa-trash-can"></i> Remove Blueprint
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const isLocal = window.location.hostname === "localhost" || 
+                        window.location.hostname === "127.0.0.1" || 
+                        window.location.protocol === "file:" ||
+                        /^192\.168\./.test(window.location.hostname) ||
+                        /^10\./.test(window.location.hostname) ||
+                        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname);
+
+        const API_URL = isLocal 
+            ? (window.location.protocol === "file:" ? "http://127.0.0.1:8000" : `${window.location.protocol}//${window.location.hostname}:8000`)
+            : "https://waypoint-rit.onrender.com";
+        
+        async function attemptLogin() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            if(user === 'admin' && pass === 'rit123') {
+                document.getElementById('login-overlay').style.display = 'none';
+                loadBuildings(); loadRooms(); loadMessages();
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar .nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        let buildingsData = [];
+        let roomsData = [];
+        let editBuildingId = null;
+        let editRoomId = null;
+
+        async function loadBuildings() {
+            try {
+                const select = document.getElementById('r-building');
+                const list = document.getElementById('building-list');
+                const res = await fetch(`${API_URL}/admin/buildings`);
+                buildingsData = await res.json();
+                select.innerHTML = ''; list.innerHTML = '';
+                buildingsData.forEach(b => { 
+                    select.innerHTML += `<option value="${b.building_id}">${b.name}</option>`; 
+                    list.innerHTML += `<li class="msg-item">
+                        <div>
+                            <i class="fa-solid ${b.icon}" style="color:var(--color-navy-light); margin-right:12px; font-size: 1.1rem;"></i> 
+                            <span style="font-weight: 600; color: var(--color-navy);">${b.name}</span>
+                            <span style="color: var(--color-text-muted); font-size: 0.8rem; margin-left: 10px;">(${b.total_floors} Floors)</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="preset-icon-btn" style="padding:6px 12px; margin:0;" onclick="startEditBuilding(${b.building_id})">
+                                <i class="fa-solid fa-pen" style="color: var(--color-navy-light);"></i> Edit
+                            </button>
+                            <button class="btn-danger" style="padding:6px 12px; margin:0;" onclick="deleteItem('building', '${b.building_id}')">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </li>`;
+                });
+            } catch (e) { console.log("Backend not connected yet"); }
+        }
+
+        async function addBuilding() {
+            const payload = { 
+                name: document.getElementById('b-name').value.trim(), 
+                total_floors: parseInt(document.getElementById('b-floors').value) || 1, 
+                entrance_x: parseFloat(document.getElementById('b-lat').value) || 0, 
+                entrance_y: parseFloat(document.getElementById('b-lng').value) || 0,
+                icon: document.getElementById('b-icon').value,
+                color: document.getElementById('b-color').value,
+                footprint_coordinates: document.getElementById('b-footprint').value.trim()
+            };
+            if(!payload.name || !payload.footprint_coordinates) return alert("Building Name and Coordinates are required.");
+            
+            try {
+                const res = await fetch(`${API_URL}/admin/building`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload) 
+                });
+                if(res.ok) { 
+                    alert("Building Saved!"); 
+                    clearBuildingForm();
+                    loadBuildings(); 
+                } else { 
+                    alert("Failed to save to database"); 
+                }
+            } catch(e) { alert("Backend server is not reachable for POST."); }
+        }
+
+        function clearBuildingForm() {
+            document.getElementById('b-name').value = '';
+            document.getElementById('b-floors').value = '1';
+            document.getElementById('b-lat').value = '';
+            document.getElementById('b-lng').value = '';
+            document.getElementById('b-footprint').value = '';
+            document.getElementById('b-icon').value = 'fa-building';
+            document.getElementById('b-color').value = '#f8f9fa';
+            updateIconPreview();
+        }
+
+        function startEditBuilding(id) {
+            const b = buildingsData.find(item => item.building_id === id);
+            if (!b) return;
+            editBuildingId = id;
+            document.getElementById('b-name').value = b.name;
+            document.getElementById('b-floors').value = b.total_floors;
+            document.getElementById('b-icon').value = b.icon || 'fa-building';
+            document.getElementById('b-color').value = b.color || '#f8f9fa';
+            document.getElementById('b-lat').value = b.entrance_x || '';
+            document.getElementById('b-lng').value = b.entrance_y || '';
+            document.getElementById('b-footprint').value = b.footprint_coordinates || '';
+            updateIconPreview();
+            
+            const saveBtn = document.getElementById('b-save-btn');
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Building';
+                saveBtn.setAttribute("onclick", "saveBuildingUpdate()");
+            }
+            
+            let cancelBtn = document.getElementById('b-cancel-edit');
+            if (!cancelBtn) {
+                cancelBtn = document.createElement('button');
+                cancelBtn.id = 'b-cancel-edit';
+                cancelBtn.className = 'btn-danger';
+                cancelBtn.style.padding = '12px 24px';
+                cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancel Edit';
+                cancelBtn.onclick = cancelEditBuilding;
+                saveBtn.parentNode.insertBefore(cancelBtn, saveBtn.nextSibling);
+            }
+            document.getElementById('buildings').scrollTop = 0;
+        }
+
+        function cancelEditBuilding() {
+            editBuildingId = null;
+            clearBuildingForm();
+            
+            const saveBtn = document.getElementById('b-save-btn');
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Building';
+                saveBtn.setAttribute("onclick", "addBuilding()");
+            }
+            const cancelBtn = document.getElementById('b-cancel-edit');
+            if (cancelBtn) cancelBtn.remove();
+        }
+
+        async function saveBuildingUpdate() {
+            if (!editBuildingId) return;
+            const payload = { 
+                name: document.getElementById('b-name').value.trim(), 
+                total_floors: parseInt(document.getElementById('b-floors').value) || 1, 
+                entrance_x: parseFloat(document.getElementById('b-lat').value) || 0, 
+                entrance_y: parseFloat(document.getElementById('b-lng').value) || 0,
+                icon: document.getElementById('b-icon').value,
+                color: document.getElementById('b-color').value,
+                footprint_coordinates: document.getElementById('b-footprint').value.trim()
+            };
+            if(!payload.name || !payload.footprint_coordinates) return alert("Building Name and Coordinates are required.");
+            
+            try {
+                // If backend does not support PUT yet, we simulate it by deleting and inserting
+                const delRes = await fetch(`${API_URL}/admin/building/${editBuildingId}`, { method: 'DELETE' });
+                if(delRes.ok) {
+                    const addRes = await fetch(`${API_URL}/admin/building`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload) 
+                    });
+                    if (addRes.ok) {
+                        alert("Building Updated!"); 
+                        cancelEditBuilding();
+                        loadBuildings(); 
+                    } else {
+                        alert("Error saving updated record.");
+                    }
+                } else {
+                    // Try direct PUT in case API is updated
+                    const res = await fetch(`${API_URL}/admin/building/${editBuildingId}`, { 
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload) 
+                    });
+                    if(res.ok) { 
+                        alert("Building Updated!"); 
+                        cancelEditBuilding();
+                        loadBuildings(); 
+                    } else { 
+                        alert("Failed to update building."); 
+                    }
+                }
+            } catch(e) { alert("Backend server is not reachable."); }
+        }
+
+        async function loadRooms() {
+            try {
+                const list = document.getElementById('room-list');
+                const res = await fetch(`${API_URL}/admin/rooms`);
+                roomsData = await res.json();
+                list.innerHTML = '';
+                roomsData.forEach(r => { 
+                    list.innerHTML += `<li class="msg-item">
+                        <div>
+                            <span class="badge info">Floor ${r.floor_level}</span>
+                            <span style="font-weight: 600; color: var(--color-navy);">${r.room_id}</span>
+                            <span style="color: var(--color-text-muted); font-size: 0.8rem; margin-left: 10px;">(${r.room_type} inside ${r.building_name})</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="preset-icon-btn" style="padding:6px 12px; margin:0;" onclick="startEditRoom('${r.room_id}')">
+                                <i class="fa-solid fa-pen" style="color: var(--color-navy-light);"></i> Edit
+                            </button>
+                            <button class="btn-danger" style="padding:6px 12px; margin:0;" onclick="deleteItem('room', '${r.room_id}')">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </li>`;
+                });
+            } catch(e) {}
+        }
+
+        async function addRoom() {
+            const payload = { 
+                room_id: document.getElementById('r-id').value.trim(), 
+                building_id: parseInt(document.getElementById('r-building').value), 
+                floor_level: parseInt(document.getElementById('r-floor').value) || 0, 
+                room_type: document.getElementById('r-type').value, 
+                coordinate_x: parseFloat(document.getElementById('r-lat').value) || 0, 
+                coordinate_y: parseFloat(document.getElementById('r-lng').value) || 0,
+                footprint_coordinates: document.getElementById('r-footprint').value.trim(),
+                z_coordinate: parseFloat(document.getElementById('r-zcoord').value) || 3.5,
+                color: document.getElementById('r-color').value.trim() || null
+            };
+            if(!payload.room_id || !payload.footprint_coordinates) return alert("Room ID and Coordinates are required.");
+            
+            try {
+                const res = await fetch(`${API_URL}/admin/room`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload) 
+                });
+                if(res.ok) { 
+                    alert("Room Saved!"); 
+                    clearRoomForm();
+                    loadRooms(); 
+                } else { 
+                    alert("Failed to save to database"); 
+                }
+            } catch(e) { alert("Backend server is not reachable for POST."); }
+        }
+
+        function clearRoomForm() {
+            document.getElementById('r-id').value = '';
+            document.getElementById('r-floor').value = '0';
+            document.getElementById('r-lat').value = '';
+            document.getElementById('r-lng').value = '';
+            document.getElementById('r-footprint').value = '';
+            document.getElementById('r-zcoord').value = '3.5';
+            document.getElementById('r-color').value = '';
+            document.getElementById('r-id').dispatchEvent(new Event('input'));
+        }
+
+        function startEditRoom(id) {
+            const r = roomsData.find(item => item.room_id === id);
+            if (!r) return;
+            editRoomId = id;
+            document.getElementById('r-id').value = r.room_id;
+            document.getElementById('r-building').value = r.building_id;
+            document.getElementById('r-floor').value = r.floor_level;
+            document.getElementById('r-type').value = r.room_type || 'Classroom';
+            document.getElementById('r-color').value = r.color || '';
+            document.getElementById('r-lat').value = r.coordinate_x || '';
+            document.getElementById('r-lng').value = r.coordinate_y || '';
+            document.getElementById('r-zcoord').value = r.z_coordinate || '3.5';
+            document.getElementById('r-footprint').value = r.footprint_coordinates || '';
+            
+            document.getElementById('r-id').dispatchEvent(new Event('input'));
+            
+            const saveBtn = document.getElementById('r-save-btn');
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Update Room';
+                saveBtn.setAttribute("onclick", "saveRoomUpdate()");
+            }
+            
+            let cancelBtn = document.getElementById('r-cancel-edit');
+            if (!cancelBtn) {
+                cancelBtn = document.createElement('button');
+                cancelBtn.id = 'r-cancel-edit';
+                cancelBtn.className = 'btn-danger';
+                cancelBtn.style.padding = '12px 24px';
+                cancelBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Cancel Edit';
+                cancelBtn.onclick = cancelEditRoom;
+                saveBtn.parentNode.insertBefore(cancelBtn, saveBtn.nextSibling);
+            }
+            document.getElementById('rooms').scrollTop = 0;
+        }
+
+        function cancelEditRoom() {
+            editRoomId = null;
+            clearRoomForm();
+            if (document.getElementById('r-building').options.length > 0) {
+                document.getElementById('r-building').selectedIndex = 0;
+            }
+            document.getElementById('r-type').value = 'Classroom';
+            
+            const saveBtn = document.getElementById('r-save-btn');
+            if (saveBtn) {
+                saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Room';
+                saveBtn.setAttribute("onclick", "addRoom()");
+            }
+            const cancelBtn = document.getElementById('r-cancel-edit');
+            if (cancelBtn) cancelBtn.remove();
+        }
+
+        async function saveRoomUpdate() {
+            if (!editRoomId) return;
+            const payload = { 
+                room_id: document.getElementById('r-id').value.trim(), 
+                building_id: parseInt(document.getElementById('r-building').value), 
+                floor_level: parseInt(document.getElementById('r-floor').value) || 0, 
+                room_type: document.getElementById('r-type').value, 
+                coordinate_x: parseFloat(document.getElementById('r-lat').value) || 0, 
+                coordinate_y: parseFloat(document.getElementById('r-lng').value) || 0,
+                footprint_coordinates: document.getElementById('r-footprint').value.trim(),
+                z_coordinate: parseFloat(document.getElementById('r-zcoord').value) || 3.5,
+                color: document.getElementById('r-color').value.trim() || null
+            };
+            if(!payload.room_id || !payload.footprint_coordinates) return alert("Room ID and Coordinates are required.");
+            
+            try {
+                // If backend does not support PUT yet, we delete and post
+                const delRes = await fetch(`${API_URL}/admin/room/${editRoomId}`, { method: 'DELETE' });
+                if (delRes.ok) {
+                    const addRes = await fetch(`${API_URL}/admin/room`, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload) 
+                    });
+                    if (addRes.ok) {
+                        alert("Room Updated!"); 
+                        cancelEditRoom();
+                        loadRooms(); 
+                    } else {
+                        alert("Error saving updated record.");
+                    }
+                } else {
+                    // Try direct PUT in case API is updated
+                    const res = await fetch(`${API_URL}/admin/room/${editRoomId}`, { 
+                        method: 'PUT', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify(payload) 
+                    });
+                    if(res.ok) { 
+                        alert("Room Updated!"); 
+                        cancelEditRoom();
+                        loadRooms(); 
+                    } else { 
+                        alert("Failed to update room."); 
+                    }
+                }
+            } catch(e) { alert("Backend server is not reachable."); }
+        }
+
+        async function loadMessages() {
+            try {
+                const list = document.getElementById('active-messages-list');
+                const res = await fetch(`${API_URL}/live-data`);
+                let data = await res.json();
+                if(!Array.isArray(data)) return;
+                list.innerHTML = '';
+                data.forEach(m => {
+                    list.innerHTML += `<li class="msg-item">
+                        <div>
+                            <span class="badge ${m.type}">${m.type}</span>
+                            <span style="font-weight: 600; color: var(--color-navy);">${m.message}</span>
+                        </div>
+                        <button class="btn-danger" style="padding:6px 12px; margin:0;" onclick="deleteItem('status', ${m.status_id})">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </li>`;
+                });
+            } catch(e) { console.log('Messages failed to load'); }
+        }
+
+        async function pushMessage() {
+            const payload = {
+                message: document.getElementById('msg-text').value.trim(),
+                type: document.getElementById('msg-type').value
+            };
+            if(!payload.message) return alert("Message cannot be empty.");
+            
+            try {
+                const res = await fetch(`${API_URL}/admin/status`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(payload) 
+                });
+                if(res.ok) { 
+                    alert("Message Posted Successfully!"); 
+                    document.getElementById('msg-text').value = ''; 
+                    loadMessages(); 
+                } else { 
+                    alert("Failed to save."); 
+                }
+            } catch(e) { alert("Backend server not reachable."); }
+        }
+
+        async function deleteItem(type, id) {
+            if(!confirm("Are you sure you want to delete this?")) return;
+            try {
+                const res = await fetch(`${API_URL}/admin/${type}/${id}`, { method: 'DELETE' });
+                if(res.ok) {
+                    if(type === 'building') loadBuildings();
+                    if(type === 'room') loadRooms();
+                    if(type === 'status') loadMessages();
+                } else {
+                    alert("Failed to delete.");
+                }
+            } catch(e) { alert("Backend server not reachable."); }
+        }
+
+        // --- MAPBOX DRAW STUDIO COMPONENTS ---
+        let adminMap = null;
+        let drawControl = null;
+        let currentDrawTarget = null;
+        mapboxgl.accessToken = 'pk.eyJ1IjoibGVlbGFrcmlzaG5hOTEiLCJhIjoiY21ubGRyd3Y0MTE0dDJvcXVtcTVtZmpsdSJ9.' + '82mSmhy8H3hZ-x-wCsCtzw';
+
+        function openDrawMap(targetInputId) {
+            currentDrawTarget = targetInputId;
+            document.getElementById('map-modal').classList.add('active');
+            
+            if (!adminMap) {
+                adminMap = new mapboxgl.Map({
+                    container: 'draw-map',
+                    style: 'mapbox://styles/mapbox/satellite-streets-v12', 
+                    center: [80.0447, 13.0390],
+                    zoom: 17.5
+                });
+
+                drawControl = new MapboxDraw({
+                    displayControlsDefault: false,
+                    controls: { polygon: true, trash: true },
+                    defaultMode: 'draw_polygon'
+                });
+
+                adminMap.addControl(drawControl);
+            } else {
+                drawControl.deleteAll();
+                setTimeout(() => adminMap.resize(), 100); 
+                drawControl.changeMode('draw_polygon');
+            }
+        }
+
+        function closeDrawMap() {
+            document.getElementById('map-modal').classList.remove('active');
+            currentDrawTarget = null;
+        }
+
+        function saveDrawMap() {
+            const data = drawControl.getAll();
+            if (data.features.length > 0) {
+                const poly = data.features[0];
+                const coordsString = JSON.stringify(poly.geometry.coordinates);
+                document.getElementById(currentDrawTarget).value = coordsString;
+                
+                try {
+                    let totalLng = 0, totalLat = 0, pts = poly.geometry.coordinates[0];
+                    pts.forEach(p => { totalLng += p[0]; totalLat += p[1]; });
+                    const cx = totalLng / pts.length;
+                    const cy = totalLat / pts.length;
+                    
+                    const isBuilding = currentDrawTarget === 'b-footprint';
+                    document.getElementById(isBuilding ? 'b-lng' : 'r-lng').value = cx.toFixed(6);
+                    document.getElementById(isBuilding ? 'b-lat' : 'r-lat').value = cy.toFixed(6);
+                } catch(e) {}
+                
+                alert("Shape traced and coordinates imported successfully!");
+                closeDrawMap();
+            } else {
+                alert("Please draw a shape first.");
+            }
+        }
+
+        // --- BLUEPRINT OVERLAY LOGIC ---
+        let bpImageStr = null;
+        let bpImgObj = new Image();
+
+        function getBlueprintCoords() {
+            let scale = parseFloat(document.getElementById('bp-scale').value); 
+            let rot = parseFloat(document.getElementById('bp-rotation').value);
+            let offX = parseFloat(document.getElementById('bp-lng').value);
+            let offY = parseFloat(document.getElementById('bp-lat').value);
+            
+            let cx = 80.0447 + offX;
+            let cy = 13.0390 + offY;
+            
+            let aspect = bpImgObj.width > 0 ? (bpImgObj.height / bpImgObj.width) : 1; 
+            
+            let distW = scale;
+            let distH = scale * aspect;
+            
+            let p1 = [cx - distW, cy + distH]; 
+            let p2 = [cx + distW, cy + distH]; 
+            let p3 = [cx + distW, cy - distH]; 
+            let p4 = [cx - distW, cy - distH]; 
+            
+            let centerPoint = turf.point([cx, cy]);
+            let poly = turf.polygon([[p1, p2, p3, p4, p1]]);
+            let rotated = turf.transformRotate(poly, rot, {pivot: centerPoint});
+            let c = rotated.geometry.coordinates[0];
+            
+            return [c[0], c[1], c[2], c[3]];
+        }
+
+        function handleBlueprintUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                bpImageStr = ev.target.result;
+                bpImgObj.onload = () => {
+                    document.getElementById('blueprint-panel').classList.add('active');
+                    if (adminMap.getSource('blueprint-src')) {
+                        adminMap.removeLayer('blueprint-layer');
+                        adminMap.removeSource('blueprint-src');
+                    }
+                    adminMap.addSource('blueprint-src', {
+                        'type': 'image',
+                        'url': bpImageStr,
+                        'coordinates': getBlueprintCoords() 
+                    });
+                    adminMap.addLayer({
+                        'id': 'blueprint-layer',
+                        'type': 'raster',
+                        'source': 'blueprint-src',
+                        'paint': { 'raster-opacity': parseFloat(document.getElementById('bp-opacity').value) }
+                    });
+                };
+                bpImgObj.src = bpImageStr;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function recalculateBlueprint() {
+            if (!adminMap.getSource('blueprint-src')) return;
+            let opacity = parseFloat(document.getElementById('bp-opacity').value);
+            adminMap.setPaintProperty('blueprint-layer', 'raster-opacity', opacity);
+            
+            const newCoords = getBlueprintCoords();
+            adminMap.getSource('blueprint-src').setCoordinates(newCoords);
+        }
+
+        function removeBlueprint() {
+            if (adminMap.getSource('blueprint-src')) {
+                adminMap.removeLayer('blueprint-layer');
+                adminMap.removeSource('blueprint-src');
+            }
+            document.getElementById('blueprint-panel').classList.remove('active');
+            document.getElementById('bp-upload').value = ""; 
+            bpImageStr = null;
+        }
+
+        // --- QR CODE GENERATOR LOGIC ---
+        let roomQrCode = null;
+
+        document.getElementById('r-id').addEventListener('input', function(e) {
+            const roomId = e.target.value.trim();
+            const qrContainer = document.getElementById('room-qr-display');
+            
+            if (!roomId) {
+                qrContainer.innerHTML = '<span style="font-size: 0.75rem; color: #64748b; text-align: center; font-weight: 500;">Enter Room ID<br>to generate QR</span>';
+                roomQrCode = null;
+                return;
+            }
+
+            qrContainer.innerHTML = ''; 
+            roomQrCode = new QRCode(qrContainer, {
+                text: roomId,
+                width: 120,
+                height: 120,
+                colorDark : "#030712",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        });
+
+        function downloadQRCode() {
+            if (!roomQrCode) {
+                alert("Please enter a Room ID first to generate a QR code.");
+                return;
+            }
+            
+            let url = '';
+            const img = document.querySelector('#room-qr-display img');
+            const canvas = document.querySelector('#room-qr-display canvas');
+            
+            if (img && img.src && img.src.length > 100) { 
+                url = img.src;
+            } else if (canvas) {
+                url = canvas.toDataURL("image/png");
+            }
+            
+            if (!url) {
+                alert("QR Code not fully generated yet.");
+                return;
+            }
+
+            const roomId = document.getElementById('r-id').value.trim() || 'room';
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `QR_${roomId}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function updateIconPreview() {
+            const input = document.getElementById('b-icon');
+            const preview = document.getElementById('b-icon-preview');
+            const iconClass = input.value.trim() || 'fa-building';
+            
+            preview.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            
+            const colorInput = document.getElementById('b-color');
+            const color = colorInput.value.trim() || '#0B2545';
+            
+            preview.style.background = 'transparent';
+            preview.style.color = color;
+            preview.style.borderColor = color; 
+            preview.style.boxShadow = `0 4px 12px ${color}25`; 
+            preview.style.setProperty('--hover-color', color);
+            
+            document.querySelectorAll('.preset-icon-btn').forEach(btn => {
+                const btnIcon = btn.getAttribute('data-icon');
+                if (btnIcon === iconClass) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function setPresetIcon(iconClass) {
+            document.getElementById('b-icon').value = iconClass;
+            updateIconPreview();
+        }
+
+        // ==========================================
+        // KIOSK MODE CONTROLLER FOR ADMIN PORTAL
+        // ==========================================
+
+        // 1. Automatic Fullscreen on First User Interaction (cross-browser iOS/Safari safe)
+        function enterFullscreenOnGesture() {
+            if (!document.fullscreenElement) {
+                const docEl = document.documentElement;
+                const requestFs = docEl.requestFullscreen || docEl.webkitRequestFullscreen || docEl.mozRequestFullScreen || docEl.msRequestFullscreen;
+                if (requestFs) {
+                    requestFs.call(docEl).catch(err => {
+                        console.warn("Kiosk fullscreen blocked:", err);
+                    });
+                } else {
+                    console.warn("Fullscreen API not supported on this browser/device.");
+                }
+            }
+            document.removeEventListener('click', enterFullscreenOnGesture);
+            document.removeEventListener('touchstart', enterFullscreenOnGesture);
+        }
+        document.addEventListener('click', enterFullscreenOnGesture);
+        document.addEventListener('touchstart', enterFullscreenOnGesture);
+
+        // 2. Disable context menu / right click
+        window.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        // 3. Security Idle Timeout (180 Seconds of Inactivity logs out and resets)
+        let adminIdleTimer = null;
+        const adminIdleMs = 180000; // 3 minutes
+
+        function resetAdminIdleTimer() {
+            clearTimeout(adminIdleTimer);
+            adminIdleTimer = setTimeout(triggerAdminIdleReset, adminIdleMs);
+        }
+
+        function triggerAdminIdleReset() {
+            // If already logged out, do nothing
+            if (document.getElementById('login-overlay').style.display === 'flex' || 
+                document.getElementById('login-overlay').style.display === '') return;
+
+            // Reset forms
+            clearBuildingForm();
+            clearRoomForm();
+            document.getElementById('msg-text').value = '';
+
+            // Close draw maps modal if open
+            if (document.getElementById('map-modal').classList.contains('active')) {
+                closeDrawMap();
+            }
+
+            // Lock the system back to login screen
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('login-overlay').style.display = 'flex';
+            document.getElementById('login-error').style.display = 'none';
+
+            alert("Session expired due to inactivity. Log in again.");
+        }
+
+        // Monitor activity to prevent logout during edits
+        ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(evt => {
+            window.addEventListener(evt, resetAdminIdleTimer, true);
+        });
+
+        resetAdminIdleTimer();
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "id": "/waypoint",
+  "short_name": "Waypoint RIT",
+  "name": "Waypoint RIT Mobile Navigation",
+  "icons": [
+    {
+      "src": "logo.png?v=5",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo.png?v=5",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "index.html",
+  "background_color": "#F4F7FA",
+  "display": "standalone",
+  "theme_color": "#0B2545"
+}

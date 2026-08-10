@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/main.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/admin/(.*)",
+      "dest": "/api/main.py"
+    },
+    {
+      "src": "/live-data",
+      "dest": "/api/main.py"
+    },
+    {
+      "src": "/search/(.*)",
+      "dest": "/api/main.py"
+    },
+    {
+      "src": "/route(.*)",
+      "dest": "/api/main.py"
+    },
+    {
+      "src": "/debug-db",
+      "dest": "/api/main.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
+}

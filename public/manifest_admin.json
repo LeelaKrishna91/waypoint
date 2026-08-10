@@ -1,0 +1,23 @@
+{
+  "id": "/admin",
+  "short_name": "RIT Admin",
+  "name": "Waypoint RIT Administration Portal",
+  "icons": [
+    {
+      "src": "logo_admin.png?v=5",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo_admin.png?v=5",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "admin.html",
+  "background_color": "#F4F7FA",
+  "display": "standalone",
+  "theme_color": "#0B2545"
+}

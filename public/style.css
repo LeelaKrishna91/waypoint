@@ -1089,7 +1089,7 @@ input:checked+.slider:before {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: linear-gradient(-45deg, #020617, #0f172a, #0c4a6e, #020617);
+    background: linear-gradient(-45deg, #020617, #0f172a, #082f49, #020617);
     background-size: 400% 400%;
     animation: gradientBG 15s ease infinite;
     z-index: 9999;
@@ -1097,6 +1097,43 @@ input:checked+.slider:before {
     justify-content: center;
     align-items: center;
     transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    perspective: 1000px;
+    overflow: hidden;
+}
+
+.particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(56, 189, 248, 0.6);
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+    animation: floatParticle 8s infinite linear;
+}
+
+.particle:nth-child(1) { left: 10%; bottom: -10px; animation-duration: 6s; animation-delay: 0s; }
+.particle:nth-child(2) { left: 30%; bottom: -10px; animation-duration: 9s; animation-delay: 2s; width: 6px; height: 6px; }
+.particle:nth-child(3) { left: 50%; bottom: -10px; animation-duration: 7s; animation-delay: 4s; }
+.particle:nth-child(4) { left: 70%; bottom: -10px; animation-duration: 11s; animation-delay: 1s; width: 3px; height: 3px; }
+.particle:nth-child(5) { left: 90%; bottom: -10px; animation-duration: 8s; animation-delay: 3s; }
+.particle:nth-child(6) { left: 20%; bottom: -10px; animation-duration: 10s; animation-delay: 5s; }
+
+@keyframes floatParticle {
+    0% { transform: translateY(0) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
 }
 
 .splash-screen.hidden {
@@ -1111,6 +1148,7 @@ input:checked+.slider:before {
     display: flex;
     flex-direction: column;
     align-items: center;
+    z-index: 10;
 }
 
 .splash-logo-container {
@@ -1120,7 +1158,8 @@ input:checked+.slider:before {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
+    transform-style: preserve-3d;
 }
 
 .splash-logo {
@@ -1128,9 +1167,10 @@ input:checked+.slider:before {
     height: 90px;
     object-fit: contain;
     border-radius: 24px;
-    z-index: 2;
-    filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.4));
-    animation: logoPulse 2s ease-in-out infinite alternate;
+    z-index: 5;
+    filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.5));
+    animation: logo3DFlip 4s infinite cubic-bezier(0.45, 0.05, 0.55, 0.95);
+    transform-style: preserve-3d;
 }
 
 .pulse-ring, .pulse-ring-outer {
@@ -1156,23 +1196,26 @@ input:checked+.slider:before {
 
 .orbital-ring {
     position: absolute;
-    width: 130px;
-    height: 130px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
     border: 2px dashed rgba(56, 189, 248, 0.4);
     border-top-color: transparent;
     border-bottom-color: transparent;
-    animation: spinOrbital 6s linear infinite;
     z-index: 3;
 }
+
+.ring-1 { animation: spinOrbitalX 4s linear infinite; }
+.ring-2 { animation: spinOrbitalY 5s linear infinite reverse; width: 155px; height: 155px; border-color: rgba(14, 165, 233, 0.3); border-left-color: transparent; border-right-color: transparent; }
+.ring-3 { animation: spinOrbitalZ 6s linear infinite; width: 170px; height: 170px; border-color: rgba(2, 132, 199, 0.2); border-top-color: transparent; }
 
 .orbital-ring::before {
     content: '';
     position: absolute;
-    top: 10px;
-    left: 10px;
-    width: 12px;
-    height: 12px;
+    top: 15px;
+    left: 15px;
+    width: 8px;
+    height: 8px;
     background: #38bdf8;
     border-radius: 50%;
     box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
@@ -1208,8 +1251,20 @@ input:checked+.slider:before {
     height: 100%;
     background: linear-gradient(90deg, #38bdf8, #0ea5e9, #0284c7);
     border-radius: 10px;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.8);
     transition: width 0.4s cubic-bezier(0.1, 0.8, 0.25, 1);
+}
+
+.progress-bar-animated {
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.25) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.25) 50%, rgba(255, 255, 255, 0.25) 75%, transparent 75%, transparent);
+    background-size: 1rem 1rem;
+    animation: progress-bar-stripes 1s linear infinite;
+    background-color: #0ea5e9;
+}
+
+@keyframes progress-bar-stripes {
+    0% { background-position: 1rem 0; }
+    100% { background-position: 0 0; }
 }
 
 .splash-content p {
@@ -1238,9 +1293,10 @@ input:checked+.slider:before {
     justify-content: center;
 }
 
-@keyframes logoPulse {
-    0% { transform: scale(0.96); filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.3)); }
-    100% { transform: scale(1.04); filter: drop-shadow(0 0 25px rgba(56, 189, 248, 0.6)); }
+@keyframes logo3DFlip {
+    0% { transform: perspective(600px) rotateY(0deg) scale(0.95); filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4)); }
+    50% { transform: perspective(600px) rotateY(180deg) scale(1.05); filter: drop-shadow(0 0 35px rgba(56, 189, 248, 0.8)); }
+    100% { transform: perspective(600px) rotateY(360deg) scale(0.95); filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.4)); }
 }
 
 @keyframes ringPulse {
@@ -1259,9 +1315,19 @@ input:checked+.slider:before {
     100% { background-position: 0% 50%; }
 }
 
-@keyframes spinOrbital {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+@keyframes spinOrbitalX {
+    0% { transform: rotateX(60deg) rotateY(0deg) rotateZ(0deg); }
+    100% { transform: rotateX(60deg) rotateY(0deg) rotateZ(360deg); }
+}
+
+@keyframes spinOrbitalY {
+    0% { transform: rotateX(0deg) rotateY(70deg) rotateZ(0deg); }
+    100% { transform: rotateX(0deg) rotateY(70deg) rotateZ(360deg); }
+}
+
+@keyframes spinOrbitalZ {
+    0% { transform: rotateX(45deg) rotateY(45deg) rotateZ(0deg); }
+    100% { transform: rotateX(45deg) rotateY(45deg) rotateZ(360deg); }
 }
 
 @keyframes shineText {

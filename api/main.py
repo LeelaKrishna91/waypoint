@@ -125,32 +125,10 @@ def search_location(query: str):
     return res
 
 # --- PATHFINDING & ROUTING ENGINE ---
-WALKWAY_NODES = {
-    "main_gate": (13.037528246529249, 80.04520562488239),
-    "junc_south": (13.0378, 80.0451),
-    "junc_center": (13.0386, 80.0450),
-    "junc_north": (13.0393, 80.0449),
-    "junc_ne": (13.0394, 80.0454),
-    "green_entrance": (13.0380, 80.0447),
-    "a_entrance": (13.0385, 80.0453),
-    "b_entrance": (13.0390, 80.0450),
-    "c_entrance": (13.0394, 80.0456),
-    "jobs_entrance": (13.0399, 80.0447)
-}
+import json
 
-WALKWAY_EDGES = {
-    "main_gate": ["junc_south"],
-    "junc_south": ["main_gate", "green_entrance", "a_entrance", "junc_center"],
-    "green_entrance": ["junc_south", "junc_center"],
-    "a_entrance": ["junc_south", "junc_center"],
-    "junc_center": ["green_entrance", "a_entrance", "b_entrance", "junc_north"],
-    "b_entrance": ["junc_center", "junc_north"],
-    "junc_north": ["b_entrance", "jobs_entrance", "junc_ne", "junc_center"],
-    "jobs_entrance": ["junc_north"],
-    "junc_ne": ["junc_north", "c_entrance"],
-    "c_entrance": ["junc_ne"]
-}
-
+WALKWAY_NODES = {}
+WALKWAY_EDGES = {}
 BUILDING_TO_NODE = {
     10: "a_entrance",
     11: "green_entrance",
@@ -158,6 +136,101 @@ BUILDING_TO_NODE = {
     13: "jobs_entrance",
     14: "c_entrance"
 }
+buildings_mapped = False
+
+def load_pathways():
+    global WALKWAY_NODES, WALKWAY_EDGES
+    pathways_file = os.path.join(os.path.dirname(__file__), "..", "RIT Pathways.geojson")
+    if not os.path.exists(pathways_file):
+        pathways_file = os.path.join(os.path.dirname(__file__), "RIT Pathways.geojson")
+    if not os.path.exists(pathways_file):
+        pathways_file = "RIT Pathways.geojson"
+
+    if os.path.exists(pathways_file):
+        try:
+            with open(pathways_file, "r") as f:
+                data = json.load(f)
+            
+            nodes_map = {}
+            nodes_coords = {}
+            edges_map = {}
+            
+            def get_node_id(lng, lat):
+                key = (round(lat, 6), round(lng, 6))
+                if key not in nodes_map:
+                    node_id = f"w_{len(nodes_map)}"
+                    nodes_map[key] = node_id
+                    nodes_coords[node_id] = key
+                return nodes_map[key]
+                
+            for feature in data.get("features", []):
+                geom = feature.get("geometry", {})
+                if geom.get("type") == "LineString":
+                    coords = geom.get("coordinates", [])
+                    prev_node = None
+                    for pt in coords:
+                        node_id = get_node_id(pt[0], pt[1])
+                        if prev_node and prev_node != node_id:
+                            if prev_node not in edges_map:
+                                edges_map[prev_node] = set()
+                            if node_id not in edges_map:
+                                edges_map[node_id] = set()
+                            edges_map[prev_node].add(node_id)
+                            edges_map[node_id].add(prev_node)
+                        prev_node = node_id
+            
+            WALKWAY_NODES = {nid: coord for nid, coord in nodes_coords.items()}
+            WALKWAY_EDGES = {nid: list(neighbors) for nid, neighbors in edges_map.items()}
+            print(f"Loaded {len(WALKWAY_NODES)} pathway nodes from {pathways_file}")
+        except Exception as e:
+            print("Failed to load RIT Pathways.geojson:", e)
+    else:
+        # Static Fallback if GeoJSON not found
+        WALKWAY_NODES = {
+            "main_gate": (13.037528246529249, 80.04520562488239),
+            "junc_south": (13.0378, 80.0451),
+            "junc_center": (13.0386, 80.0450),
+            "junc_north": (13.0393, 80.0449),
+            "junc_ne": (13.0394, 80.0454),
+            "green_entrance": (13.0380, 80.0447),
+            "a_entrance": (13.0385, 80.0453),
+            "b_entrance": (13.0390, 80.0450),
+            "c_entrance": (13.0394, 80.0456),
+            "jobs_entrance": (13.0399, 80.0447)
+        }
+        WALKWAY_EDGES = {
+            "main_gate": ["junc_south"],
+            "junc_south": ["main_gate", "green_entrance", "a_entrance", "junc_center"],
+            "green_entrance": ["junc_south", "junc_center"],
+            "a_entrance": ["junc_south", "junc_center"],
+            "junc_center": ["green_entrance", "a_entrance", "b_entrance", "junc_north"],
+            "b_entrance": ["junc_center", "junc_north"],
+            "junc_north": ["b_entrance", "jobs_entrance", "junc_ne", "junc_center"],
+            "jobs_entrance": ["junc_north"],
+            "junc_ne": ["junc_north", "c_entrance"],
+            "c_entrance": ["junc_ne"]
+        }
+
+load_pathways()
+
+def link_buildings_to_nodes():
+    global BUILDING_TO_NODE
+    if any(nid.startswith("w_") for nid in WALKWAY_NODES):
+        try:
+            conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT building_id, entrance_x, entrance_y FROM Buildings")
+            buildings = cursor.fetchall()
+            conn.close()
+            new_mapping = {}
+            for b in buildings:
+                if b["entrance_x"] and b["entrance_y"]:
+                    closest = find_closest_node(b["entrance_x"], b["entrance_y"])
+                    if closest:
+                        new_mapping[b["building_id"]] = closest
+            BUILDING_TO_NODE = new_mapping
+            print(f"Mapped {len(BUILDING_TO_NODE)} buildings dynamically to GeoJSON pathways.")
+        except Exception as e:
+            print("Failed to map buildings to nodes dynamically:", e)
 
 def get_distance(p1, p2):
     return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
@@ -241,56 +314,152 @@ def resolve_location(query: str):
         }
     return None
 
+@app.get("/walkways")
+def get_walkways():
+    features = []
+    seen_edges = set()
+    for start, neighbors in WALKWAY_EDGES.items():
+        for end in neighbors:
+            edge_key = tuple(sorted([start, end]))
+            if edge_key not in seen_edges:
+                seen_edges.add(edge_key)
+                p1 = WALKWAY_NODES[start]
+                p2 = WALKWAY_NODES[end]
+                features.append({
+                    "type": "Feature",
+                    "properties": {"type": "walkway"},
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": [[p1[1], p1[0]], [p2[1], p2[0]]]
+                    }
+                })
+    return {"type": "FeatureCollection", "features": features}
+
 @app.get("/route")
 def get_route(start: str, end: str):
+    global buildings_mapped
+    if not buildings_mapped:
+        link_buildings_to_nodes()
+        buildings_mapped = True
+        
     start_loc = resolve_location(start)
     end_loc = resolve_location(end)
     
     if not start_loc or not end_loc:
         raise HTTPException(status_code=404, detail="Start or destination location not found.")
-        
+
+    # 1. Same-building internal routing
+    if start_loc.get("building_id") and start_loc.get("building_id") == end_loc.get("building_id"):
+        if start_loc["floor"] == end_loc["floor"]:
+            return {
+                "start": start_loc,
+                "end": end_loc,
+                "path": [[start_loc["lng"], start_loc["lat"]], [end_loc["lng"], end_loc["lat"]]],
+                "instructions": [f"Walk directly from {start_loc['name']} to {end_loc['name']} on Floor {start_loc['floor']}."],
+                "distance_deg": get_distance((start_loc["lat"], start_loc["lng"]), (end_loc["lat"], end_loc["lng"]))
+            }
+        else:
+            # Different floors: route via Lift/Steps
+            conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT room_id, coordinate_x as lat, coordinate_y as lng FROM Rooms WHERE building_id = %s AND (room_id LIKE '%%LIFT%%' OR room_id LIKE '%%STEPS%%' OR room_type = 'Corridor') LIMIT 1", (start_loc["building_id"],))
+            transit = cursor.fetchone()
+            conn.close()
+            
+            if transit:
+                transit_name = transit["room_id"]
+                transit_lat = transit["lat"]
+                transit_lng = transit["lng"]
+                return {
+                    "start": start_loc,
+                    "end": end_loc,
+                    "path": [
+                        [start_loc["lng"], start_loc["lat"]],
+                        [transit_lng, transit_lat],
+                        [end_loc["lng"], end_loc["lat"]]
+                    ],
+                    "instructions": [
+                        f"Walk from {start_loc['name']} to the transit ({transit_name}) on Floor {start_loc['floor']}.",
+                        f"Take the transit to Floor {end_loc['floor']}.",
+                        f"Exit the transit and walk to {end_loc['name']}."
+                    ],
+                    "distance_deg": get_distance((start_loc["lat"], start_loc["lng"]), (transit_lat, transit_lng)) + get_distance((transit_lat, transit_lng), (end_loc["lat"], end_loc["lng"]))
+                }
+
+    # 2. Outdoor different-building routing
+    # Resolve exact coordinates for building entrances
+    start_ent_lat, start_ent_lng = start_loc["lat"], start_loc["lng"]
+    if start_loc.get("building_id"):
+        conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT entrance_x, entrance_y FROM Buildings WHERE building_id = %s", (start_loc["building_id"],))
+        b_ent = cursor.fetchone()
+        conn.close()
+        if b_ent and b_ent["entrance_x"] and b_ent["entrance_y"]:
+            start_ent_lat, start_ent_lng = b_ent["entrance_x"], b_ent["entrance_y"]
+
+    end_ent_lat, end_ent_lng = end_loc["lat"], end_loc["lng"]
+    if end_loc.get("building_id"):
+        conn = get_db_connection(); cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT entrance_x, entrance_y FROM Buildings WHERE building_id = %s", (end_loc["building_id"],))
+        b_ent = cursor.fetchone()
+        conn.close()
+        if b_ent and b_ent["entrance_x"] and b_ent["entrance_y"]:
+            end_ent_lat, end_ent_lng = b_ent["entrance_x"], b_ent["entrance_y"]
+
+    # Match entrance to the nearest walkway node
     start_node = None
     if start_loc.get("building_id") in BUILDING_TO_NODE:
         start_node = BUILDING_TO_NODE[start_loc["building_id"]]
     else:
-        start_node = find_closest_node(start_loc["lat"], start_loc["lng"])
-        
+        start_node = find_closest_node(start_ent_lat, start_ent_lng)
+
     end_node = None
     if end_loc.get("building_id") in BUILDING_TO_NODE:
         end_node = BUILDING_TO_NODE[end_loc["building_id"]]
     else:
-        end_node = find_closest_node(end_loc["lat"], end_loc["lng"])
-        
+        end_node = find_closest_node(end_ent_lat, end_ent_lng)
+
     cost, walkway_path_nodes = dijkstra(start_node, end_node)
     
     path_coords = []
     
-    # Prepend starting room / custom location coordinates if it is a room or coordinate
-    if start_loc["type"] == "room" or start_loc["type"] == "coordinate":
-        path_coords.append([start_loc["lng"], start_loc["lat"]])
+    # 1. Start from the exact starting room / coordinate
+    path_coords.append([start_loc["lng"], start_loc["lat"]])
+    
+    # 2. Add building entrance (if starting from a room inside a building)
+    if start_loc["type"] == "room":
+        path_coords.append([start_ent_lng, start_ent_lat])
         
+    # 3. Add all walkway nodes
     for node in walkway_path_nodes:
         lat, lng = WALKWAY_NODES[node]
         path_coords.append([lng, lat])
         
-    if end_loc["type"] == "room" or end_loc["type"] == "coordinate":
-        path_coords.append([end_loc["lng"], end_loc["lat"]])
+    # 4. Add destination building entrance (if ending in a room inside a building)
+    if end_loc["type"] == "room":
+        path_coords.append([end_ent_lng, end_ent_lat])
         
+    # 5. Add exact destination room / coordinate
+    path_coords.append([end_loc["lng"], end_loc["lat"]])
+    
     filtered_coords = []
     for coord in path_coords:
         if not filtered_coords or filtered_coords[-1] != coord:
             filtered_coords.append(coord)
             
     instructions = []
-    if start_loc["type"] == "room" and start_loc["floor"] > 0:
-        instructions.append(f"Exit room {start_loc['name']} on Floor {start_loc['floor']} and use the elevator/stairs to get to the ground level.")
+    if start_loc["type"] == "room":
+        if start_loc["floor"] > 0:
+            instructions.append(f"Exit room {start_loc['name']} on Floor {start_loc['floor']} and take elevator/stairs to Ground level.")
+        instructions.append(f"Exit {start_loc['building_name']} via the main entrance.")
+        
+    instructions.append("Follow the outdoor walkway paths.")
     
-    instructions.append(f"Exit {start_loc['name']} and follow the walkway path.")
-    
-    instructions.append("Follow the pathway towards the destination building.")
-    
-    if end_loc["type"] == "room" and end_loc["floor"] > 0:
-        instructions.append(f"Enter the destination building and use the elevator/stairs to reach room {end_loc['name']} on Floor {end_loc['floor']}.")
+    if end_loc["type"] == "room":
+        instructions.append(f"Enter {end_loc['building_name']} via the entrance.")
+        if end_loc["floor"] > 0:
+            instructions.append(f"Take elevator/stairs to Floor {end_loc['floor']} and locate room {end_loc['name']}.")
+        else:
+            instructions.append(f"Locate room {end_loc['name']} on the Ground level.")
     else:
         instructions.append(f"Arrive at {end_loc['name']}.")
         

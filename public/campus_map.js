@@ -163,6 +163,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const layersToRemove = [
             'world-mask-layer',
             'campus-wall-layer',
+            'campus-walkways-layer',
             'indoor-furniture',
             'indoor-walls',
             'indoor-rooms',
@@ -175,7 +176,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        const sourcesToRemove = ['world-mask', 'campus-wall', 'custom-campus'];
+        const sourcesToRemove = ['world-mask', 'campus-wall', 'campus-walkways', 'custom-campus'];
         sourcesToRemove.forEach(sourceId => {
             if (window.outdoorMap.getSource(sourceId)) {
                 window.outdoorMap.removeSource(sourceId);
@@ -279,6 +280,36 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
         } catch (e) {
             console.warn("Failed to generate perimeter wall.", e);
+        }
+
+        // RIT Campus Walkways Layer
+        try {
+            const wRes = await fetch(`${API_URL}/walkways`);
+            if (wRes.ok) {
+                const walkwaysGeoJSON = await wRes.json();
+                window.outdoorMap.addSource('campus-walkways', {
+                    'type': 'geojson',
+                    'data': walkwaysGeoJSON
+                });
+
+                window.outdoorMap.addLayer({
+                    'id': 'campus-walkways-layer',
+                    'type': 'line',
+                    'source': 'campus-walkways',
+                    'layout': {
+                        'line-join': 'round',
+                        'line-cap': 'round'
+                    },
+                    'paint': {
+                        'line-color': currentTheme === 'dark' ? '#38bdf8' : '#0284c7',
+                        'line-width': 2.5,
+                        'line-dasharray': [3, 2],
+                        'line-opacity': 0.65
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn("Failed to load walkways layer.", e);
         }
 
         window.outdoorMap.addSource('custom-campus', {

@@ -179,9 +179,57 @@ def load_pathways():
                             edges_map[node_id].add(prev_node)
                         prev_node = node_id
             
+            def get_components(nodes, edges):
+                visited = set()
+                components = []
+                for node in nodes:
+                    if node not in visited:
+                        comp = []
+                        queue = [node]
+                        visited.add(node)
+                        while queue:
+                            curr = queue.pop(0)
+                            comp.append(curr)
+                            for neighbor in edges.get(curr, []):
+                                if neighbor not in visited:
+                                    visited.add(neighbor)
+                                    queue.append(neighbor)
+                        components.append(comp)
+                return components
+
+            # Self-healing: Connect disconnected components if they are within 15 meters
+            comp = get_components(nodes_coords.keys(), edges_map)
+            threshold = 15.0 # meters
+            merged = True
+            while merged and len(comp) > 1:
+                merged = False
+                min_d = float('inf')
+                best_pair = None
+                for i in range(len(comp)):
+                    for j in range(i + 1, len(comp)):
+                        for n1 in comp[i]:
+                            for n2 in comp[j]:
+                                # 1 degree lat = 111139m, 1 degree lng = 108272m
+                                dlat = (nodes_coords[n1][0] - nodes_coords[n2][0]) * 111139.0
+                                dlng = (nodes_coords[n1][1] - nodes_coords[n2][1]) * 108272.0
+                                d = math.sqrt(dlat**2 + dlng**2)
+                                if d < min_d:
+                                    min_d = d
+                                    best_pair = (n1, n2)
+                if min_d <= threshold and best_pair:
+                    n1, n2 = best_pair
+                    if n1 not in edges_map:
+                        edges_map[n1] = set()
+                    if n2 not in edges_map:
+                        edges_map[n2] = set()
+                    edges_map[n1].add(n2)
+                    edges_map[n2].add(n1)
+                    comp = get_components(nodes_coords.keys(), edges_map)
+                    merged = True
+
             WALKWAY_NODES = {nid: coord for nid, coord in nodes_coords.items()}
             WALKWAY_EDGES = {nid: list(neighbors) for nid, neighbors in edges_map.items()}
-            print(f"Loaded {len(WALKWAY_NODES)} pathway nodes from {pathways_file}")
+            print(f"Loaded {len(WALKWAY_NODES)} pathway nodes from {pathways_file}. Healed to {len(comp)} component(s).")
         except Exception as e:
             print("Failed to load RIT Pathways.geojson:", e)
     else:
@@ -233,7 +281,10 @@ def link_buildings_to_nodes():
             print("Failed to map buildings to nodes dynamically:", e)
 
 def get_distance(p1, p2):
-    return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+    # exact metric distance in meters for Dijkstra
+    dlat = (p1[0] - p2[0]) * 111139.0
+    dlng = (p1[1] - p2[1]) * 108272.0
+    return math.sqrt(dlat**2 + dlng**2)
 
 def find_closest_node(lat, lng):
     closest = None

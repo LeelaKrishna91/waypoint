@@ -81,11 +81,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         [80.053, 13.045]  // Northeast coordinates
     ];
 
-    let currentTheme = 'dark'; // Dark theme is default
+    let currentTheme = 'light'; // Light theme is default
 
     window.outdoorMap = new mapboxgl.Map({
         container: 'map-container',
-        style: 'mapbox://styles/mapbox/dark-v11', // default dark map
+        style: 'mapbox://styles/mapbox/light-v11', // default light map
         center: ritCenter,
         zoom: 17.5,
         minZoom: 16.5,    // Tighter zoom barrier

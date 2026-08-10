@@ -25,9 +25,17 @@
     <!-- Global Splash Screen -->
     <div id="splash-screen" class="splash-screen">
         <div class="splash-content">
-            <div class="spinner"></div>
+            <div class="splash-logo-container">
+                <img src="logo.png?v=5" alt="Waypoint RIT" class="splash-logo">
+                <div class="pulse-ring"></div>
+                <div class="pulse-ring-outer"></div>
+            </div>
             <h2>Waypoint RIT</h2>
-            <p>Initializing Campus Data...</p>
+            <div class="progress-container">
+                <div id="loading-progress-bar" class="progress-bar"></div>
+            </div>
+            <p id="loading-status-text">Initializing Campus Data...</p>
+            <div id="loading-trivia-text" class="loading-trivia">Loading campus details...</div>
         </div>
     </div>
 

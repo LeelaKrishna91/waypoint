@@ -104,6 +104,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     let userLocationMarker = null;
     let watchId = null;
     let isTrackingLocation = false;
+    let isInitialLoad = true;
+
+    // ==========================================
+    // LOADING & INTERACTIVE SPLASH SCREEN ENGINE
+    // ==========================================
+    const triviaList = [
+        "Scan any room's QR code on campus to instantly activate precision indoor navigation.",
+        "Waypoint RIT renders classroom desks, chairs, and doors in real-time 3D.",
+        "Need to find someone? Type their name or room number in the search bar above.",
+        "Use the 2D/3D toggle button to switch between orthographic and perspective angles.",
+        "Classrooms are color-coded in orange, offices in blue, and meeting rooms in green."
+    ];
+    let triviaIndex = 0;
+    let triviaInterval = null;
+
+    function startTriviaRotation() {
+        const triviaText = document.getElementById('loading-trivia-text');
+        if (triviaText) {
+            triviaText.innerText = triviaList[0];
+        }
+        triviaInterval = setInterval(() => {
+            const triviaText = document.getElementById('loading-trivia-text');
+            if (triviaText) {
+                triviaText.style.opacity = 0;
+                setTimeout(() => {
+                    triviaIndex = (triviaIndex + 1) % triviaList.length;
+                    triviaText.innerText = triviaList[triviaIndex];
+                    triviaText.style.opacity = 1;
+                }, 500);
+            }
+        }, 4000);
+    }
+
+    function updateLoadingProgress(percent, status) {
+        if (!isInitialLoad) return;
+        const progressBar = document.getElementById('loading-progress-bar');
+        const statusText = document.getElementById('loading-status-text');
+        if (progressBar) progressBar.style.width = percent + '%';
+        if (statusText) statusText.innerText = status;
+    }
 
     // ==========================================
     // 3. 3D X-RAY DATA ENGINE & POI MARKERS
@@ -111,6 +151,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Abstract layer building out so it can run again if style changes (dark mode)
     async function renderCustomLayers() {
+        if (isInitialLoad) {
+            startTriviaRotation();
+            updateLoadingProgress(10, "Initializing Campus Map...");
+        }
         // Clear markers
         markersList.forEach(m => m.remove());
         markersList = [];
@@ -336,11 +380,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
-        refreshCampusData().catch(err => console.error("Background data load failed:", err));
-
-        // Hide Splash Screen once everything is ready
-        const splash = document.getElementById('splash-screen');
-        if (splash) splash.classList.add('hidden');
+        if (isInitialLoad) {
+            try {
+                updateLoadingProgress(35, "Connecting to spatial backend...");
+                await refreshCampusData();
+                updateLoadingProgress(100, "Campus map ready!");
+            } catch (err) {
+                console.error("Background data load failed:", err);
+                updateLoadingProgress(100, "Offline Mode active");
+            } finally {
+                isInitialLoad = false;
+                clearInterval(triviaInterval);
+                setTimeout(() => {
+                    const splash = document.getElementById('splash-screen');
+                    if (splash) splash.classList.add('hidden');
+                }, 800);
+            }
+        } else {
+            refreshCampusData().catch(err => console.error("Background data load failed:", err));
+        }
     }
 
     // Call render once map style finishes loading
@@ -393,8 +451,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function refreshCampusData() {
         try {
+            updateLoadingProgress(45, "Fetching building footprints...");
             const bRes = await fetch(`${API_URL}/admin/buildings`);
             const buildings = await bRes.json();
+            updateLoadingProgress(60, "Processing building geometry...");
             let features = [];
 
             buildings.forEach(b => {
@@ -434,9 +494,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             try {
+                updateLoadingProgress(75, "Fetching indoor room layouts...");
                 const rRes = await fetch(`${API_URL}/admin/rooms`);
                 if (rRes.ok) {
                     const rooms = await rRes.json();
+                    updateLoadingProgress(90, "Assembling 3D furniture & walls...");
                     rooms.forEach(r => {
                         if (!r.footprint_coordinates) return;
 

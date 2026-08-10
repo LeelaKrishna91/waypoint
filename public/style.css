@@ -1089,7 +1089,9 @@ input:checked+.slider:before {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+    background: linear-gradient(-45deg, #020617, #0f172a, #0c4a6e, #020617);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
     z-index: 9999;
     display: flex;
     justify-content: center;
@@ -1152,16 +1154,42 @@ input:checked+.slider:before {
     animation-delay: 0.5s;
 }
 
+.orbital-ring {
+    position: absolute;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    border: 2px dashed rgba(56, 189, 248, 0.4);
+    border-top-color: transparent;
+    border-bottom-color: transparent;
+    animation: spinOrbital 6s linear infinite;
+    z-index: 3;
+}
+
+.orbital-ring::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 12px;
+    height: 12px;
+    background: #38bdf8;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8;
+}
+
 .splash-content h2 {
     font-family: var(--font-heading);
     font-size: 2.4rem;
     font-weight: 800;
     margin: 15px 0 10px 0;
-    background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+    background: linear-gradient(135deg, #38bdf8 0%, #bae6fd 50%, #0284c7 100%);
+    background-size: 200% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 4px 20px rgba(2, 132, 199, 0.25);
     letter-spacing: -0.5px;
+    animation: shineText 3s linear infinite;
 }
 
 .progress-container {
@@ -1223,6 +1251,21 @@ input:checked+.slider:before {
 @keyframes ringPulseOuter {
     0% { transform: scale(1); opacity: 0.6; }
     100% { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes spinOrbital {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes shineText {
+    to { background-position: 200% center; }
 }
 
 /* Scrollbar styles */

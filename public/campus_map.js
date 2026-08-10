@@ -567,9 +567,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.outdoorMap.on('mouseleave', 'building-shells', () => window.outdoorMap.getCanvas().style.cursor = '');
 
     function updateRoomMarkerOffsets() {
-        if (!window.outdoorMap || !window.outdoorMap.transform || !window.outdoorMap.transform.projMatrix || roomMarkersList.length === 0) return;
+        if (!window.outdoorMap || !window.outdoorMap.transform || roomMarkersList.length === 0) return;
         const tr = window.outdoorMap.transform;
-        const m = tr.projMatrix;
+        const m = tr.customLayerMatrix ? tr.customLayerMatrix() : tr.projMatrix;
 
         roomMarkersList.forEach(item => {
             const marker = item.marker || item;
